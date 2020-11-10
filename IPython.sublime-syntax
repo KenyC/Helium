@@ -6,10 +6,9 @@ scope: source.helium.output
 variables:
   command_start: "In\\[\\d+\\]:"
   error_start:   "Error\\[[^\\]]+\\]:"   # Not sure what should go inside the brackets of Error
-  streams:       "\\(stdout|display data|stderr\\):"
+  streams:       "\\((stdout|display data|stderr)\\):"
 
 contexts:
-
 
   main:
     - match: |-
@@ -23,7 +22,7 @@ contexts:
 
     - match: |-
         ({{streams}})
-      name: streams
+      name: stream
       comment: Streams' names in bold
       captures:
         1: markup.italic 
