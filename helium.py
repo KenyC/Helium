@@ -261,9 +261,9 @@ def _enter_connection_info(window, continue_cb):
 def _start_kernel(window, view, continue_cb=lambda: None, *, logger=HELIUM_LOGGER):
     kernelspecs = HeliumKernelManager.list_kernelspecs()
     menu_items = list(kernelspecs.keys()) + [
+        "(Most recent kernel)",
         "(Enter connection info)",
-        "(Connect remote kernel via SSH)",
-        "(Most recent kernel)"
+        "(Connect remote kernel via SSH)"
     ]
     index = yield partial(window.show_quick_panel, menu_items)
 
@@ -277,6 +277,18 @@ def _start_kernel(window, view, continue_cb=lambda: None, *, logger=HELIUM_LOGGE
     if index == -1:
         return
     elif index == len(kernelspecs):
+        connection_info = yield _get_most_recent_connection_file
+        connection_name = yield partial(
+            window.show_input_panel,
+            "connection name",
+            "",
+            on_change=None,
+            on_cancel=None,
+        )
+        kernel = HeliumKernelManager.start_kernel(
+            connection_info=connection_info, connection_name=connection_name
+        )
+    elif index == len(kernelspecs) + 1:
         # Create a kernel from connection info.
         connection_info = yield partial(_enter_connection_info, window)
         connection_name = yield partial(
@@ -292,7 +304,7 @@ def _start_kernel(window, view, continue_cb=lambda: None, *, logger=HELIUM_LOGGE
         kernel = HeliumKernelManager.start_kernel(
             connection_info=connection_info, connection_name=connection_name, cwd=cwd
         )
-    elif index == len(kernelspecs) + 1:
+    elif index == len(kernelspecs) + 2:
         # Create a kernel with SSH tunneling.
         servers = sublime.load_settings("Helium.sublime-settings").get("ssh_servers")
         if not servers:
@@ -325,19 +337,6 @@ def _start_kernel(window, view, continue_cb=lambda: None, *, logger=HELIUM_LOGGE
         kernel = HeliumKernelManager.start_kernel(
             connection_info=connection_info, connection_name=connection_name
         )
-    elif index == len(kernelspecs) + 2:
-        connection_info = yield _get_most_recent_connection_file
-        connection_name = yield partial(
-            window.show_input_panel,
-            "connection name",
-            "",
-            on_change=None,
-            on_cancel=None,
-        )
-        kernel = HeliumKernelManager.start_kernel(
-            connection_info=connection_info, connection_name=connection_name
-        )
-
     else:
         # Create a kernel from the kernelspec name.
         selected_kernelspec = menu_items[index]
