@@ -87,28 +87,16 @@ def jupyter_data_dir():
 
 def jupyter_runtime_dir():
     """Return the runtime dir for transient jupyter files.
-    
     Returns JUPYTER_RUNTIME_DIR if defined.
-    
-    Respects XDG_RUNTIME_DIR on non-OS X, non-Windows,
-    falls back on data_dir/runtime otherwise.
+    The default is now (data_dir)/runtime on all platforms;
+    we no longer use XDG_RUNTIME_DIR after various problems.
     """
     env = os.environ
-    
+
     if env.get('JUPYTER_RUNTIME_DIR'):
         return env['JUPYTER_RUNTIME_DIR']
-    
-    if sys.platform == 'darwin':
-        return pjoin(jupyter_data_dir(), 'runtime')
-    elif os.name == 'nt':
-        return pjoin(jupyter_data_dir(), 'runtime')
-    else:
-        # Linux, non-OS X Unix, AIX, etc.
-        xdg = env.get("XDG_RUNTIME_DIR", None)
-        if xdg:
-            return pjoin(xdg, 'jupyter')
-        return pjoin(jupyter_data_dir(), 'runtime')
 
+    return pjoin(jupyter_data_dir(), 'runtime')
 
 if os.name == 'nt':
     programdata = os.environ.get('PROGRAMDATA', None)

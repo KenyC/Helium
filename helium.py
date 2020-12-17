@@ -26,6 +26,7 @@ with add_path(os.path.join(os.path.dirname(__file__), "lib/client")):
     from jupyter_client.connect import tunnel_to_kernel
     from jupyter_client.kernelspec import find_kernel_specs
     from jupyter_client.manager import KernelManager
+    from jupyter_core.paths import jupyter_runtime_dir
 
 
 # Logger setting
@@ -206,6 +207,33 @@ class HeliumKernelManager(object):
         """Interrupt kernel."""
         cls.get_kernel(kernel_id).interrupt_kernel()
 
+@chain_callbacks
+def _get_most_recent_connection_file(continue_cb):
+    runtime_folder = jupyter_runtime_dir()
+    max_mtime   = 0
+    most_recent = None
+
+    for filename in os.listdir(runtime_folder):
+        _, ext = os.path.splitext(filename)
+        if ext != ".json":
+            continue
+
+        full_path = os.path.join(runtime_folder, filename)
+        mtime     = os.stat(full_path).st_mtime
+
+        if mtime > max_mtime:
+            most_recent = full_path
+            max_mtime   = mtime
+    # print(most_recent)
+    if most_recent is None:
+        sublime.message_dialog(
+            "Couldn't find any JSON connection file in runtime folder {}".format(runtime_folder)
+        )
+        raise
+
+    with open(most_recent, "r") as file:
+        continue_cb(json.loads(file.read()))
+
 
 @chain_callbacks
 def _enter_connection_info(window, continue_cb):
@@ -235,6 +263,7 @@ def _start_kernel(window, view, continue_cb=lambda: None, *, logger=HELIUM_LOGGE
     menu_items = list(kernelspecs.keys()) + [
         "(Enter connection info)",
         "(Connect remote kernel via SSH)",
+        "(Most recent kernel)"
     ]
     index = yield partial(window.show_quick_panel, menu_items)
 
@@ -257,7 +286,6 @@ def _start_kernel(window, view, continue_cb=lambda: None, *, logger=HELIUM_LOGGE
             on_change=None,
             on_cancel=None,
         )
-
         if connection_name == "":
             connection_name = None
 
@@ -297,6 +325,19 @@ def _start_kernel(window, view, continue_cb=lambda: None, *, logger=HELIUM_LOGGE
         kernel = HeliumKernelManager.start_kernel(
             connection_info=connection_info, connection_name=connection_name
         )
+    elif index == len(kernelspecs) + 2:
+        connection_info = yield _get_most_recent_connection_file
+        connection_name = yield partial(
+            window.show_input_panel,
+            "connection name",
+            "",
+            on_change=None,
+            on_cancel=None,
+        )
+        kernel = HeliumKernelManager.start_kernel(
+            connection_info=connection_info, connection_name=connection_name
+        )
+
     else:
         # Create a kernel from the kernelspec name.
         selected_kernelspec = menu_items[index]
